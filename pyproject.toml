@@ -1,0 +1,27 @@
+[project]
+name = "pod-underwrite"
+version = "1.0.0"
+description = "Pre-purchase correctness audits for PoD circuits on X Layer"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.110",
+  "uvicorn[standard]>=0.27",
+  "jinja2>=3.1",
+  "httpx>=0.27",
+  "pycryptodome>=3.20",
+  "python-multipart>=0.0.9",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[tool.setuptools]
+packages = ["podx"]
+
+[tool.setuptools.package-data]
+podx = ["data/*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+markers = ["network: hits a live service"]

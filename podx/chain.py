@@ -112,3 +112,38 @@ def _blk(at: int | str) -> str:
     return at
 
 
+def implementation(proxy: str | None = None, at: int | str = "latest") -> str:
+    """EIP-1967 implementation slot; falls back to the address itself."""
+    proxy = proxy or settings().pod_mining
+    try:
+        raw = get_storage_at(proxy, EIP1967_IMPL_SLOT, at)
+        if raw and int(raw, 16) != 0:
+            return "0x" + raw[-40:]
+    except ChainError:
+        pass
+    return proxy
+
+
+def snapshot(pin_slack: int | None = None) -> dict:
+    """One pinned view: head, pinned block and hash, chain id, implementation.
+
+    Everything an audit records as provenance comes from here, at one block, so
+    a report can never mix a netlist from block N with a seat from block N+500.
+    """
+    s = settings()
+    slack = s.pin_slack if pin_slack is None else pin_slack
+    h = head()
+    pinned = max(1, h - slack)
+    b = block(pinned)
+    return {
+        "chain_id": chain_id(),
+        "head": h,
+        "block": b.number,
+        "block_hash": b.hash,
+        "block_time": b.iso,
+        "timestamp": b.timestamp,
+        "pod_mining": s.pod_mining,
+        "implementation": implementation(at=b.number),
+        "processor": s.processor,
+        "rpc": s.rpc_url,
+    }

@@ -306,3 +306,349 @@ def _trivial(task: tasks.Task, vs: vectors.VectorSet) -> str | None:
 
 
 # --------------------------------------------------------------------------- audit
+def audit(req: AuditRequest) -> Verdict:
+    s = settings()
+    warnings: list[str] = []
+
+    task = tasks.get(req.task_id)
+    if task is None:
+        # Structural failure before any oracle work: no task, no opinion about it.
+        return _simple(
+            V.UNRESOLVED,
+            f"Task {req.task_id} is not in the published PoD index, so there is nothing to audit it against.",
+            req,
+            None,
+            Coverage("none", 0, None),
+            digest="",
+        )
+
+    try:
+        raw = _clean_hex(req.netlist_hex)
+    except AuditError as exc:
+        return _simple(V.INVALID, f"This netlist is malformed: {exc}.", req, task,
+                       Coverage("none", 0, None), digest="", extra=str(exc))
+
+    digest = _sha256(raw)
+    if not raw:
+        return _simple(V.INVALID, "This netlist is empty: zero bytes, so there is nothing to evaluate.",
+                       req, task, Coverage("none", 0, None), digest=digest)
+
+    try:
+        gates = nl.decode(raw)
+    except nl.NetlistError as exc:
+        return _simple(V.INVALID, f"This netlist is malformed: {exc}. It cannot have been taped out through the normal path.",
+                       req, task, Coverage("none", 0, None), digest=digest)
+
+    if nl.encode(gates) != raw:
+        return _simple(V.INVALID,
+                       "This netlist is malformed: it does not re-encode byte-for-byte, so the record stream is not canonical TAP-02.",
+                       req, task, Coverage("none", 0, None), digest=digest)
+
+    n_in = req.n_in if req.n_in is not None else task.n_in
+    n_out = req.n_out if req.n_out is not None else task.n_out
+    circuit = nl.Circuit(gates=tuple(gates), n_in=n_in, n_out=n_out)
+
+    problems = circuit.wellformed()
+    if problems:
+        return _simple(V.INVALID,
+                       f"This netlist is malformed: {problems[0]}. It cannot have been taped out through the normal path.",
+                       req, task, Coverage("none", 0, None), digest=digest,
+                       economics=_economics(circuit, task, None))
+
+    ok, why = circuit.gate_bounds_ok()
+    if not ok:
+        return _simple(V.GATE_LIMIT,
+                       f"Outside the PoD tape-out bounds: {why}. Verdict not computed.",
+                       req, task, Coverage("none", 0, None), digest=digest,
+                       economics=_economics(circuit, task, None))
+
+    try:
+        vs = vectors.official(task.task_id)
+    except vectors.OracleUnavailable as exc:
+        return _simple(V.UNRESOLVED,
+                       f"The official vector set for task {task.task_id} could not be fetched or did not verify against its published root, so no comparison is possible: {exc}.",
+                       req, task, Coverage("none", 0, None), digest=digest,
+                       economics=_economics(circuit, task, None))
+
+    snap: dict | None = None
+    try:
+        snap = chain.snapshot(req.block and 0)
+        if req.block is not None:
+            snap["block"] = req.block
+            b = chain.block(req.block)
+            snap.update(block_hash=b.hash, block_time=b.iso)
+    except chain.ChainError as exc:
+        warnings.append(f"X Layer provenance could not be pinned: {exc}")
+
+    prov = _provenance(req, digest, snap, vs)
+
+    # ---------------------------------------------------------------- compare
+    try:
+        outcome = _compare(circuit, task, vs, req)
+    except Exception as exc:  # never turn an engine bug into a verdict
+        return _simple(V.INCONCLUSIVE,
+                       f"No opinion formed: the comparison did not complete ({type(exc).__name__}: {exc}).",
+                       req, task, Coverage("none", 0, None), digest=digest,
+                       provenance=prov, economics=_economics(circuit, task, None))
+
+    proto = _protocol_crosscheck(task.task_id, "0x" + raw.hex()) if req.crosscheck else None
+    econ = _economics(circuit, task, proto)
+
+    if outcome.code == V.VECTOR_MISMATCH:
+        cx = outcome.counterexample
+        assert cx is not None
+        prov = replace(prov)
+        return Verdict(
+            code=V.VECTOR_MISMATCH,
+            sentence=(
+                f"Challengeable. Input {cx.input_hex} — official {cx.expected_hex}, "
+                f"this circuit {cx.got_hex} (output bit {cx.output_bit})."
+            ),
+            task=task,
+            coverage=outcome.coverage,
+            provenance=prov,
+            economics=econ,
+            counterexample=cx,
+            warnings=tuple(warnings),
+            netlist_hex="0x" + raw.hex(),
+            reference_hex=req.reference_hex,
+            circuit_id=req.circuit_id,
+        )
+
+    if outcome.code != V.PASS:
+        return _simple(outcome.code, outcome.sentence, req, task, outcome.coverage,
+                       digest=digest, provenance=prov, economics=econ, warnings=warnings)
+
+    # ---------------------------------------------------------------- PASS refinements
+    trivial_wire = _trivial(task, vs)
+    if trivial_wire:
+        return Verdict(
+            code=V.TRIVIAL_TASK,
+            sentence=(
+                f"Correct, and commercially meaningless: every output bit is satisfied by {trivial_wire}, "
+                "so no design on this task can ever be challenged."
+            ),
+            task=task,
+            coverage=outcome.coverage,
+            provenance=prov,
+            economics=econ,
+            warnings=tuple(warnings),
+            netlist_hex="0x" + raw.hex(),
+            reference_hex=req.reference_hex,
+            circuit_id=req.circuit_id,
+        )
+
+    if econ.seat_best is not None and econ.cost > econ.seat_best:
+        pct = (econ.cost and econ.seat_best / econ.cost * 100) or 0
+        return Verdict(
+            code=V.BEST_FIRST_AT_RISK,
+            sentence=(
+                f"Correct, but not best-first: C={econ.cost} against the seat's best C={econ.seat_best}. "
+                f"It mines at bonus {econ.bonus if econ.bonus is not None else 'unknown'}, "
+                f"about {pct:.1f}% of the seat's effective hashrate."
+            ),
+            task=task,
+            coverage=outcome.coverage,
+            provenance=prov,
+            economics=econ,
+            warnings=tuple(warnings),
+            netlist_hex="0x" + raw.hex(),
+            reference_hex=req.reference_hex,
+            circuit_id=req.circuit_id,
+        )
+
+    return Verdict(
+        code=V.PASS,
+        sentence=outcome.sentence,
+        task=task,
+        coverage=outcome.coverage,
+        provenance=prov,
+        economics=econ,
+        warnings=tuple(warnings),
+        netlist_hex="0x" + raw.hex(),
+        reference_hex=req.reference_hex,
+        circuit_id=req.circuit_id,
+    )
+
+
+# --------------------------------------------------------------------------- comparison
+@dataclass(frozen=True, slots=True)
+class _Outcome:
+    code: str
+    sentence: str
+    coverage: Coverage
+    counterexample: Counterexample | None = None
+
+
+def _compare(circuit: nl.Circuit, task: tasks.Task, vs: vectors.VectorSet, req: AuditRequest) -> _Outcome:
+    values = vs.input_values()
+    expected = vs.expected_masks(task.n_out)
+
+    if task.sequential:
+        return _compare_sequential(circuit, task, vs)
+
+    if circuit.latch:
+        # A latched netlist cannot be scored on a combinational task: the
+        # protocol's eval() refuses latched circuits outright. Saying so beats
+        # inventing a single-beat interpretation that no verifier shares.
+        return _Outcome(
+            code=V.SHAPE_MISMATCH,
+            sentence=(
+                f"This netlist contains {circuit.latch} latch(es) but task {task.task_id} is combinational: "
+                "the protocol's eval() refuses latched circuits (\"has latch: use step\"), so it cannot be "
+                "scored against this task."
+            ),
+            coverage=Coverage("none", 0, None),
+        )
+
+    got = nl.output_masks(circuit, values)
+    diff = nl.first_difference(expected, got) if len(got) == len(expected) else (0, 0)
+    if diff is not None:
+        pos, bit = diff
+        v = vs.vectors[pos]
+        width = max(2, len(v.expected_out) * 2)
+        expected_val = 1 if (expected[bit] >> pos) & 1 else 0
+        got_val = 1 if (got[bit] >> pos) & 1 else 0
+        assert expected_val != got_val
+        return _Outcome(
+            code=V.VECTOR_MISMATCH,
+            sentence=f"Official vector {pos} disagrees on output bit {bit}.",
+            coverage=Coverage("official-256", pos, vs.count),
+            counterexample=Counterexample(
+                index=pos,
+                input_hex=v.input_hex,
+                expected_hex="0x" + format(expected_val << bit, f"0{width}x"),
+                got_hex="0x" + format(got_val << bit, f"0{width}x"),
+                output_bit=bit,
+                source="official-vector",
+            ),
+        )
+
+    exhaustive_note = ""
+    coverage = Coverage(
+        kind="official-256",
+        tested=vs.count,
+        total=vs.count,
+        note="every published vector, recomputed offline from the netlist",
+    )
+
+    if req.reference_hex:
+        ref = _reference_outcome(circuit, task, vs, req.reference_hex)
+        if ref is not None:
+            if ref.code == V.VECTOR_MISMATCH:
+                return ref
+            coverage = ref.coverage
+            exhaustive_note = ref.sentence
+        else:
+            exhaustive_note = ""
+
+    sentence = (
+        f"All {vs.count} official vectors match, recomputed offline from the netlist and folded "
+        f"against the task's published root {vs.root[:18]}… ."
+    )
+    if coverage.is_exhaustive:
+        sentence = (
+            f"Exhaustive: all {coverage.tested} inputs match the reference implementation, "
+            f"and all {vs.count} official vectors agree with the Merkle root {vs.root[:18]}… ."
+        )
+    sentence += " This is the protocol's correctness surface, not every possible input."
+    return _Outcome(code=V.PASS, sentence=sentence, coverage=coverage)
+
+
+def _compare_sequential(circuit: nl.Circuit, task: tasks.Task, vs: vectors.VectorSet) -> _Outcome:
+    frames = [[v.input] * max(1, task.cycles) for v in vs.vectors]
+    matched = 0
+    first_bad: tuple[int, bytes, bytes] | None = None
+    for pos, seq in enumerate(frames):
+        got = nl.run_frames(circuit, seq)[-1]
+        want = vs.vectors[pos].expected_out
+        if got == want:
+            matched += 1
+        elif first_bad is None:
+            first_bad = (pos, want, got)
+
+    coverage = Coverage(
+        kind="sampled-sequential",
+        tested=matched,
+        total=vs.count,
+        sequences=vs.count,
+        cycles=task.cycles,
+        note=(
+            f"each vector applied as {task.cycles} frames from the zero latch state; "
+            "the published frame schedule for sequential tasks is not specified, so this is a bounded sample"
+        ),
+    )
+    if first_bad is not None:
+        pos, want, got = first_bad
+        return _Outcome(
+            code=V.INCONCLUSIVE,
+            sentence=(
+                f"No opinion formed: {matched}/{vs.count} official vectors reproduce under a {task.cycles}-frame run from "
+                f"the zero latch state, first divergence at vector {pos} (official {want.hex() or '0x'}, this circuit {got.hex() or '0x'}). "
+                "The frame schedule for sequential tasks is not published, so this is not a challengeable finding."
+            ),
+            coverage=coverage,
+        )
+
+    return _Outcome(
+        code=V.PASS,
+        sentence=(
+            f"No counterexample in {vs.count} official vectors, each applied as {task.cycles} frames from the zero latch state. "
+            "Sequential coverage is a bounded sample, not exhaustive."
+        ),
+        coverage=coverage,
+    )
+
+
+def _reference_outcome(
+    circuit: nl.Circuit, task: tasks.Task, vs: vectors.VectorSet, reference_hex: str
+) -> _Outcome | None:
+    """Exhaustive comparison against a supplied reference implementation."""
+    try:
+        ref_raw = _clean_hex(reference_hex)
+        ref_gates = nl.decode(ref_raw)
+        ref = nl.Circuit(tuple(ref_gates), task.n_in, task.n_out)
+        if ref.wellformed() or ref.latch:
+            return None
+    except (AuditError, nl.NetlistError):
+        return None
+
+    n_in = task.n_in
+    if n_in > 20:
+        return None
+    total = 1 << n_in
+    chunk = 256
+    for start in range(0, total, chunk):
+        count = min(chunk, total - start)
+        vals = list(range(start, start + count))
+        masks = nl.masks_for_values(vals) if start else nl.counter_masks(count)[:n_in]
+        a = nl.eval_masks(ref, masks, count)
+        b = nl.eval_masks(circuit, masks, count)
+        diff = nl.first_difference(a, b)
+        if diff is not None:
+            pos, bit = diff
+            value = vals[pos]
+            width_bytes = max(1, len(vs.vectors[0].expected_out))
+            inp = value.to_bytes((n_in + 7) // 8, "little")
+            want = (a[bit] >> pos) & 1
+            gotb = (b[bit] >> pos) & 1
+            return _Outcome(
+                code=V.VECTOR_MISMATCH,
+                sentence=f"Exhaustive check disagrees at input {value}.",
+                coverage=Coverage("exhaustive", start + pos, total),
+                counterexample=Counterexample(
+                    index=start + pos,
+                    input_hex="0x" + inp.hex(),
+                    expected_hex="0x" + format(want << bit, f"0{max(2, width_bytes * 2)}x"),
+                    got_hex="0x" + format(gotb << bit, f"0{max(2, width_bytes * 2)}x"),
+                    output_bit=bit,
+                    source="exhaustive",
+                ),
+            )
+    return _Outcome(
+        code=V.PASS,
+        sentence=f"Exhaustive over all {total} inputs.",
+        coverage=Coverage("official-256+exhaustive", total, total),
+    )
+
+

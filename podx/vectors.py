@@ -136,3 +136,22 @@ def fetch(task_id: int, use_cache: bool = True) -> VectorSet:
     return _from_payload(payload, "api")
 
 
+def official(task_id: int, require_verified: bool = True) -> VectorSet:
+    vs = fetch(task_id)
+    if require_verified and not vs.verified:
+        raise OracleUnavailable(
+            f"vector set for task {task_id} did not verify: proofs fold to {vs.derived_root}, "
+            f"published root is {vs.root or '(missing)'}"
+        )
+    return vs
+
+
+def prefetch(task_ids: list[int]) -> int:
+    ok = 0
+    for tid in task_ids:
+        try:
+            official(tid)
+            ok += 1
+        except OracleUnavailable:
+            continue
+    return ok

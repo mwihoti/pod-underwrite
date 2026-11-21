@@ -652,3 +652,89 @@ def _reference_outcome(
     )
 
 
+def _economics(circuit: nl.Circuit, task: tasks.Task, proto: dict | None) -> Economics:
+    cost = circuit.cost
+    bonus, floor, cap = _bonus(cost, task.c_ref, task.k_task)
+    seat_best = None
+    seat_name = None
+    is_best = None
+    proto_cost = None
+    agree = None
+    if isinstance(proto, dict):
+        mining = proto.get("mining") or []
+        if mining:
+            entry = mining[0]
+            try:
+                seat_best = int(entry.get("best"))
+                seat_name = entry.get("name")
+                is_best = bool(cost <= seat_best)
+            except (TypeError, ValueError):
+                seat_best = None
+        if proto.get("cost") is not None:
+            try:
+                proto_cost = int(proto["cost"])
+                agree = proto_cost == cost
+            except (TypeError, ValueError):
+                proto_cost = None
+    return Economics(
+        nand=circuit.nand,
+        latch=circuit.latch,
+        area=circuit.area,
+        depth=circuit.depth,
+        cost=cost,
+        ref_cost=task.c_ref,
+        k_task=task.k_task,
+        bonus=bonus,
+        bonus_floor=floor,
+        bonus_cap=cap,
+        seat_best=seat_best,
+        seat_name=seat_name,
+        is_best=is_best,
+        protocol_cost=proto_cost,
+        protocol_agree=agree,
+    )
+
+
+def _simple(
+    code: str,
+    sentence: str,
+    req: AuditRequest,
+    task: tasks.Task | None,
+    coverage: Coverage,
+    digest: str,
+    economics: Economics | None = None,
+    provenance: Provision | None = None,
+    warnings: tuple[str, ...] = (),
+    extra: str = "",
+) -> Verdict:
+    s = settings()
+    prov = provenance or Provision(
+        block=req.block,
+        block_hash=None,
+        block_time=None,
+        chain_id=s.chain_id,
+        pod_mining=s.pod_mining,
+        implementation="",
+        processor=req.processor or s.processor,
+        task_id=req.task_id,
+        vector_root="",
+        vector_root_verified=False,
+        vector_source="",
+        netlist_sha256=digest,
+        oracle_source="none",
+        engine_version=s.engine_version,
+        rpc=s.rpc_url,
+    )
+    return Verdict(
+        code=code,
+        sentence=sentence,
+        task=task,
+        coverage=coverage,
+        provenance=prov,
+        economics=economics,
+        counterexample=None,
+        warnings=warnings,
+        netlist_hex="",
+        reference_hex=req.reference_hex,
+        circuit_id=req.circuit_id,
+    )

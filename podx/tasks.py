@@ -159,3 +159,36 @@ def get(task_id: int) -> Task | None:
     return _cache.get(task_id)
 
 
+def load_rows(rows: list[dict]) -> list[Task]:
+    """Hydrate the in-memory index from SQLite rows."""
+    out: list[Task] = []
+    for row in rows:
+        try:
+            out.append(
+                Task(
+                    task_id=int(row["task_id"]),
+                    name=row["name"],
+                    kind=int(row["kind"]),
+                    cycles=int(row["cycles"]),
+                    n_in=int(row["n_in"]),
+                    n_out=int(row["n_out"]),
+                    tier=int(row.get("tier") or 0),
+                    group=int(row.get("group_id") or 0),
+                    ref_gates=int(row.get("ref_gates") or 0),
+                    ref_nand=int(row.get("ref_nand") or 0),
+                    ref_latch=int(row.get("ref_latch") or 0),
+                    ref_depth=int(row.get("ref_depth") or 0),
+                    k_task=int(row.get("k_task") or 0),
+                    c_ref=int(row.get("c_ref") or 0),
+                    root=row.get("root") or "",
+                    vector_count=int(row.get("vector_count") or 256),
+                )
+            )
+        except Exception:
+            continue
+    if out:
+        for t in out:
+            _cache.setdefault(t.task_id, t)
+        global _loaded_at
+        _loaded_at = time.time()
+    return out

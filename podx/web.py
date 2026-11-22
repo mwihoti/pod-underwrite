@@ -180,3 +180,180 @@ def run_form(
 
 
 @app.get("/sample/{slug}")
+def run_sample(request: Request, slug: str):
+    sample = samples.by_slug(slug)
+    if sample is None:
+        raise HTTPException(404, "no such sample")
+    req = engine.AuditRequest(task_id=sample.task_id, netlist_hex=sample.hex)
+    _, audit_id = _run_audit(req)
+    return RedirectResponse(f"/a/{audit_id}", status_code=303)
+
+
+@app.get("/a/{audit_id:int}", response_class=HTMLResponse)
+def report(request: Request, audit_id: int):
+    row = store.get_audit(audit_id)
+    if row is None:
+        raise HTTPException(404, "no such audit")
+    rep = row.get("report") or {}
+    embed = f'<img src="{_ctx(request)["base"]}/badge/{audit_id}.svg" alt="PoD audit: {rep.get("verdict","")}">'
+    return TEMPLATES.TemplateResponse(
+        request,
+        "report.html",
+        _ctx(
+            request,
+            audit=row,
+            rep=rep,
+            embed=embed,
+            audit_id=audit_id,
+            tone=V.tone(rep.get("verdict", V.UNRESOLVED)),
+        ),
+    )
+
+
+@app.get("/a/{audit_id}.json")
+def report_json(audit_id: int):
+    row = store.get_audit(audit_id)
+    if row is None:
+        raise HTTPException(404, "no such audit")
+    body = json.dumps(row.get("report") or {}, indent=1)
+    return Response(content=body, media_type="application/json", headers={"Cache-Control": "public, max-age=60"})
+
+
+@app.get("/badge/{audit_id}.svg")
+def badge_svg(audit_id: int):
+    row = store.get_audit(audit_id)
+    if row is None:
+        raise HTTPException(404, "no such audit")
+    svg = badge_mod.render(row)
+    etag = '"%s"' % (row.get("netlist_sha256") or str(audit_id))[:32]
+    return Response(
+        content=svg,
+        media_type="image/svg+xml",
+        headers={"Cache-Control": "public, max-age=300", "ETag": etag},
+    )
+
+
+@app.get("/badge/{processor}/{circuit_id}.svg")
+def badge_for_circuit(processor: str, circuit_id: int):
+    row = store.latest_for(processor, circuit_id)
+    if row is None:
+        raise HTTPException(404, "no audit stored for that circuit yet")
+    return Response(
+        content=badge_mod.render(row),
+        media_type="image/svg+xml",
+        headers={"Cache-Control": "public, max-age=300"},
+    )
+
+
+@app.get("/tasks", response_class=HTMLResponse)
+def task_list(request: Request):
+    rows = _cached_task_list()
+    return TEMPLATES.TemplateResponse(request, "tasks.html", _ctx(request, tasks=rows))
+
+
+@app.get("/stats", response_class=HTMLResponse)
+def stats_page(request: Request):
+    return TEMPLATES.TemplateResponse(
+        request,
+        "stats.html",
+        _ctx(request, stats=store.stats(), events=store.events(12), recent=store.recent(30)),
+    )
+
+
+@app.get("/how", response_class=HTMLResponse)
+def how(request: Request):
+    return TEMPLATES.TemplateResponse(request, "how.html", _ctx(request))
+
+
+# --------------------------------------------------------------------------- JSON API
+@app.get("/api/tasks.json")
+def api_tasks():
+    return JSONResponse(_cached_task_list(), headers={"Cache-Control": "public, max-age=300"})
+
+
+@app.post("/api/audit")
+async def api_audit(request: Request):
+    if not _rate_ok(request):
+        raise HTTPException(429, "rate limit reached")
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(400, "body must be JSON")
+    if not isinstance(body, dict) or "task_id" not in body or "netlist" not in body:
+        raise HTTPException(400, "expected {task_id, netlist, circuit_id?, reference?}")
+    req = engine.AuditRequest(
+        task_id=int(body["task_id"]),
+        netlist_hex=str(body["netlist"]),
+        circuit_id=int(body["circuit_id"]) if body.get("circuit_id") else None,
+        reference_hex=(str(body["reference"]) if body.get("reference") else None),
+    )
+    row, audit_id = _run_audit(req)
+    rep = dict(row.get("report") or {})
+    rep["audit_id"] = audit_id
+    rep["url"] = f"{_ctx(request)['base']}/a/{audit_id}"
+    return JSONResponse(rep, headers={"Cache-Control": "no-store"})
+
+
+@app.get("/api/audit/{audit_id}.json")
+def api_audit_get(audit_id: int):
+    row = store.get_audit(audit_id)
+    if row is None:
+        raise HTTPException(404, "no such audit")
+    return JSONResponse(row.get("report") or {}, headers={"Cache-Control": "public, max-age=60"})
+
+
+# --------------------------------------------------------------------------- ops
+@app.get("/healthz")
+def healthz():
+    s = settings()
+    problems: list[str] = []
+    try:
+        store.init()
+        store.stats()
+        db_ok = True
+    except Exception as exc:
+        db_ok = False
+        problems.append(f"db: {exc}")
+    head = None
+    try:
+        head = chain.head()
+    except Exception as exc:
+        problems.append(f"rpc: {exc}")
+    lag = None
+    if head is not None:
+        last = store.get_state("last_scan_head")
+        if last is not None:
+            lag = head - int(last)
+    age = store.state_age("last_scan")
+    body = {
+        "ok": db_ok and head is not None and not problems,
+        "db_writable": db_ok,
+        "chain_id": s.chain_id,
+        "head": head,
+        "watcher_seconds_since_poll": age,
+        "watcher_block_lag": lag,
+        "engine_version": s.engine_version,
+        "problems": problems,
+    }
+    return JSONResponse(body, status_code=200 if body["ok"] else 503, headers={"Cache-Control": "no-store"})
+
+
+@app.post("/admin/fulfil")
+async def admin_fulfil(request: Request):
+    s = settings()
+    token = request.headers.get("x-admin-token") or request.query_params.get("token", "")
+    if not s.admin_token or token != s.admin_token:
+        raise HTTPException(403, "admin token required")
+    body = await request.json()
+    ok = store.fulfil(int(body["audit_id"]), str(body.get("ref", "")))
+    return {"fulfilled": ok}
+
+
+@app.post("/tg/{secret}")
+async def telegram_webhook(request: Request, secret: str):
+    s = settings()
+    if not s.telegram_secret or secret != s.telegram_secret:
+        raise HTTPException(403, "bad webhook secret")
+    update = await request.json()
+    asyncio.create_task(telegram.handle_update(update))
+    return PlainTextResponse("ok")

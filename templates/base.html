@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}PoD Underwrite{% endblock %}</title>
+  <meta name="description" content="Pre-purchase correctness audit for PoD circuits on X Layer.">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="/">PoD<em>Underwrite</em></a>
+    <nav>
+      <a href="/">Audit</a>
+      <a href="/tasks">Tasks</a>
+      <a href="/stats">Activity</a>
+      <a href="/how">Method</a>
+    </nav>
+  </header>
+
+  <main>
+    {% block body %}{% endblock %}
+  </main>
+
+  <footer class="foot">
+    <div>
+      <strong>What this is.</strong> An independent audit of a PoD circuit netlist against the
+      task's 256 official vectors, with the Merkle root recomputed here rather than trusted
+      from the API.
+    </div>
+    <div>
+      <strong>What it is not.</strong> Not a guarantee, not a custody service, not a challenge
+      submission. Sequential tasks are sampled, and every report says so.
+    </div>
+    <div class="meta">
+      X Layer chain {{ chain_id }} · mining contract <code>{{ pod_mining }}</code> ·
+      engine <code>{{ engine_version }}</code>
+    </div>
+  </footer>
+</body>
+</html>

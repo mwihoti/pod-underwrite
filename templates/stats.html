@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Activity — PoD Underwrite{% endblock %}
+{% block body %}
+<h1 class="page">Activity</h1>
+
+<div class="grid four">
+  <div class="stat"><span class="n">{{ stats.total }}</span><span class="l">audits stored</span></div>
+  <div class="stat"><span class="n">{{ stats.tasks }}</span><span class="l">tasks indexed</span></div>
+  <div class="stat"><span class="n">{{ stats.events }}</span><span class="l">watched events</span></div>
+  <div class="stat"><span class="n">{{ stats.last_audit or '—' }}</span><span class="l">last audit (unix)</span></div>
+</div>
+
+<section class="card">
+  <h2>By verdict</h2>
+  {% if stats.by_verdict %}
+  <table class="tbl">
+    <thead><tr><th>Verdict</th><th>Count</th></tr></thead>
+    <tbody>
+      {% for k, n in stats.by_verdict.items() %}
+      <tr><td><span class="pill sm {{ tones[k] if tones else '' }}">{{ k }}</span></td><td class="num">{{ n }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="dim">Nothing audited yet.</p>{% endif %}
+</section>
+
+<section class="card">
+  <h2>Watcher</h2>
+  {% if events %}
+  <table class="tbl">
+    <thead><tr><th>Block</th><th>Kind</th><th>Tx</th><th>Topic</th></tr></thead>
+    <tbody>
+      {% for ev in events %}
+      <tr>
+        <td class="num">{{ ev.block }}</td>
+        <td>{{ ev.kind }}</td>
+        <td><code class="wrap">{{ (ev.tx or '')[:24] }}…</code></td>
+        <td><code class="wrap">{{ (ev.topic0 or '')[:24] }}…</code></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="dim">No events recorded yet. The watcher polls the mining contract and the public stats
+    feed; the first change on either lands here.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>Latest audits</h2>
+  <table class="tbl">
+    <thead><tr><th>#</th><th>Verdict</th><th>Task</th><th>Circuit</th><th>C / seat</th><th>When</th></tr></thead>
+    <tbody>
+      {% for a in recent %}
+      <tr>
+        <td><a href="/a/{{ a.id }}">{{ a.id }}</a></td>
+        <td><span class="pill sm {{ tones[a.verdict] if tones else '' }}">{{ a.verdict }}</span></td>
+        <td class="num">#{{ a.task_id }}</td>
+        <td class="num">{{ a.circuit_id or '—' }}</td>
+        <td class="num">{{ a.cost or '—' }}{% if a.seat_best %} / {{ a.seat_best }}{% endif %}</td>
+        <td class="dim">{{ a.created_at }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

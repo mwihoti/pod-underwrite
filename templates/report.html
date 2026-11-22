@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}{{ rep.verdict }} — task {{ rep.provenance.task_id }} — PoD Underwrite{% endblock %}
+
+{% block body %}
+{% set e = rep.economics or {} %}
+{% set p = rep.provenance or {} %}
+{% set c = rep.coverage or {} %}
+
+<nav class="crumbs"><a href="/">Audit</a> / <span>report #{{ audit_id }}</span></nav>
+
+<section class="verdict {{ tone }}">
+  <div class="vhead">
+    <span class="pill {{ tone }}">{{ rep.verdict }}</span>
+    <h1>{{ rep.label }}</h1>
+  </div>
+  <p class="sentence">{{ rep.sentence }}</p>
+  <p class="tiny">
+    Task {{ p.task_id }} · {{ rep.task.name if rep.task else 'unknown task' }} ·
+    {{ 'sequential' if rep.task and rep.task.kind == 1 else 'combinational' }} ·
+    engine <code>{{ p.engine_version }}</code>
+  </p>
+</section>
+
+{% if rep.counterexample %}
+{% set cx = rep.counterexample %}
+<section class="card bad">
+  <h2>Counterexample</h2>
+  <table class="kv">
+    <tr><th>Input</th><td><code>{{ cx.input }}</code></td></tr>
+    <tr><th>Official output</th><td><code>{{ cx.expected }}</code></td></tr>
+    <tr><th>This circuit</th><td><code>{{ cx.got }}</code></td></tr>
+    <tr><th>Output bit</th><td>{{ cx.output_bit }}</td></tr>
+    <tr><th>Found by</th><td>{{ cx.source }}{% if cx.source == 'official-vector' %} #{{ cx.index }}{% endif %}</td></tr>
+  </table>
+  <p class="tiny">Anyone can replay this: the input is the literal value to feed the circuit.</p>
+</section>
+{% endif %}
+
+<div class="grid two">
+  <section class="card">
+    <h2>Coverage</h2>
+    <table class="kv">
+      <tr><th>Kind</th><td>{{ c.kind }}</td></tr>
+      <tr><th>Tested</th><td class="num">{{ c.tested }}{% if c.total %} / {{ c.total }}{% endif %}</td></tr>
+      {% if c.cycles %}<tr><th>Frames per vector</th><td>{{ c.cycles }}</td></tr>{% endif %}
+      {% if c.sequences %}<tr><th>Sequences</th><td>{{ c.sequences }}</td></tr>{% endif %}
+      <tr><th>Exhaustive</th><td>{{ 'yes' if c.exhaustive else 'no' }}</td></tr>
+    </table>
+    {% if c.note %}<p class="tiny">{{ c.note }}</p>{% endif %}
+  </section>
+
+  <section class="card">
+    <h2>Economics</h2>
+    <table class="kv">
+      <tr><th>NAND / latch</th><td class="num">{{ e.nand }} / {{ e.latch }}</td></tr>
+      <tr><th>Area <span class="dim">nand + 7·latch</span></th><td class="num">{{ e.area }}</td></tr>
+      <tr><th>Depth</th><td class="num">{{ e.depth }}</td></tr>
+      <tr><th>Cost <span class="dim">A · max(d,1)³</span></th><td class="num"><strong>{{ e.cost }}</strong></td></tr>
+      <tr><th>Task reference cost</th><td class="num">{{ e.ref_cost }}</td></tr>
+      <tr><th>Bonus <span class="dim">k·cRef/C</span></th><td class="num">{{ e.bonus if e.bonus is not none else '—' }}
+        {% if e.bonus_floor is not none %}<span class="dim">(clamped {{ e.bonus_floor }}–{{ e.bonus_cap }})</span>{% endif %}</td></tr>
+      {% if e.seat_best %}<tr><th>Seat best</th><td class="num">{{ e.seat_best }}{% if e.seat_name %} <span class="dim">{{ e.seat_name }}</span>{% endif %}</td></tr>{% endif %}
+      {% if e.protocol_cost is not none %}
+      <tr><th>Protocol's cost</th><td class="num">{{ e.protocol_cost }}
+        <span class="tag {{ 'ok' if e.protocol_agree else 'bad' }}">{{ 'agrees' if e.protocol_agree else 'disagrees' }}</span></td></tr>
+      {% endif %}
+    </table>
+    <p class="tiny">Cost is computed here from the decoded netlist, not read from the service.</p>
+  </section>
+</div>
+
+<section class="card">
+  <h2>Provenance</h2>
+  <table class="kv">
+    <tr><th>Chain</th><td>X Layer ({{ p.chain_id }})</td></tr>
+    <tr><th>Pinned block</th><td class="num">{{ p.block if p.block is not none else 'unpinned' }}
+      {% if p.block_time %}<span class="dim">{{ p.block_time }}</span>{% endif %}</td></tr>
+    <tr><th>Block hash</th><td><code class="wrap">{{ p.block_hash or '—' }}</code></td></tr>
+    <tr><th>Mining contract</th><td><code>{{ p.pod_mining }}</code></td></tr>
+    <tr><th>Implementation</th><td><code class="wrap">{{ p.implementation or '—' }}</code></td></tr>
+    <tr><th>Processor</th><td><code class="wrap">{{ p.processor }}</code></td></tr>
+    <tr><th>Task</th><td>#{{ p.task_id }}</td></tr>
+    <tr><th>Vector root</th><td><code class="wrap">{{ p.vector_root or '—' }}</code>
+      <span class="tag {{ 'ok' if p.vector_root_verified else 'bad' }}">
+        {{ 'recomputed' if p.vector_root_verified else 'not reproduced' }}</span></td></tr>
+    <tr><th>Vectors from</th><td>{{ p.vector_source or '—' }}</td></tr>
+    <tr><th>Netlist SHA-256</th><td><code class="wrap">{{ p.netlist_sha256 }}</code></td></tr>
+    <tr><th>RPC</th><td><code>{{ p.rpc }}</code></td></tr>
+  </table>
+  {% if rep.warnings %}
+  <ul class="warnlist">{% for w in rep.warnings %}<li>{{ w }}</li>{% endfor %}</ul>
+  {% endif %}
+</section>
+
+{% if rep.netlist_hex %}
+<section class="card">
+  <h2>Input</h2>
+  <details>
+    <summary>Netlist ({{ rep.netlist_hex|length // 2 - 1 }} bytes)</summary>
+    <pre class="hex">{{ rep.netlist_hex }}</pre>
+  </details>
+  {% if rep.reference_hex %}
+  <details>
+    <summary>Reference netlist used for the exhaustive pass</summary>
+    <pre class="hex">{{ rep.reference_hex }}</pre>
+  </details>
+  {% endif %}
+</section>
+{% endif %}
+
+<section class="card">
+  <h2>Embed the badge</h2>
+  <div class="badgebox"><img src="/badge/{{ audit_id }}.svg" alt="PoD audit badge" height="20"></div>
+  <pre class="hex">{{ embed }}</pre>
+  <p class="tiny">
+    The badge is static SVG, cacheable for five minutes, and carries the block and netlist
+    fingerprint in its tooltip. Machine-readable: <a href="/a/{{ audit_id }}.json">/a/{{ audit_id }}.json</a>
+  </p>
+</section>
+
+<section class="card limits">
+  <h2>Read this before you rely on it</h2>
+  <ul>
+    <li><strong>Combinational</strong> tasks are compared against all 256 official vectors, which are
+      the protocol's own correctness surface. That is not the same claim as "correct on every input"
+      — only the exhaustive mode (reference netlist supplied) says that.</li>
+    <li><strong>Sequential</strong> tasks are sampled. A clean sample is reported as a sample.</li>
+    <li>The netlist is evaluated by our independent simulator, not by the chain. The cost figure is
+      ours; where the protocol's own verifier answered, both numbers are shown.</li>
+    <li>A verdict is about <em>this netlist bytes</em> at <em>this task</em>. It says nothing about who
+      owns the circuit or whether it holds the seat tomorrow.</li>
+  </ul>
+</section>
+{% endblock %}

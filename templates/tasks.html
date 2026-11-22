@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Tasks — PoD Underwrite{% endblock %}
+{% block body %}
+<h1 class="page">The PoD task index</h1>
+<p class="lede dim">
+  {{ tasks|length }} tasks published for X Layer. Combinational tasks can be checked against all
+  256 vectors; sequential ones are sampled and labelled as such.
+</p>
+
+{% if not tasks %}
+<div class="card note"><p>The task index is not available right now. It is fetched from the public
+  PoD API and cached; the samples on the front page still work from the bundled snapshot.</p></div>
+{% else %}
+<table class="tbl wide">
+  <thead>
+    <tr><th>#</th><th>Name</th><th>Kind</th><th>Pins</th><th>Cycles</th><th>Ref gates</th>
+        <th>cRef</th><th>k</th><th>Tier</th><th>Vectors</th></tr>
+  </thead>
+  <tbody>
+    {% for t in tasks %}
+    <tr>
+      <td class="num">{{ t.task_id }}</td>
+      <td>{{ t.name }}</td>
+      <td>{{ 'seq' if t.kind == 1 else 'comb' }}</td>
+      <td class="num">{{ t.n_in }}/{{ t.n_out }}</td>
+      <td class="num">{{ t.cycles }}</td>
+      <td class="num">{{ t.ref_gates }}</td>
+      <td class="num">{{ t.c_ref }}</td>
+      <td class="num">{{ t.k_task }}</td>
+      <td class="num">{{ t.tier }}</td>
+      <td class="num">{{ t.vector_count }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}

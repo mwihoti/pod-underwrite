@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}PoD Underwrite — audit a circuit before you buy it{% endblock %}
+
+{% block body %}
+<section class="hero">
+  <h1>Audit a PoD circuit <span>before you pay for it.</span></h1>
+  <p class="lede">
+    Paste a TAP-02 netlist and its task id. You get a verdict, the exact input that breaks it
+    if one exists, and the arithmetic that decides whether it can ever win the seat.
+  </p>
+  <p class="lede dim">
+    Every audit recomputes the task's vector root from the 256 published leaves, so the answer
+    does not depend on trusting the service that served the data.
+  </p>
+</section>
+
+<div class="grid two">
+  <section class="card">
+    <h2>Run an audit</h2>
+    <form method="post" action="/audit" class="stack">
+      <label>
+        Task
+        <select name="task_id" required>
+          {% for t in tasks %}
+          <option value="{{ t.task_id }}" {% if selected == t.task_id %}selected{% endif %}>
+            #{{ t.task_id }} — {{ t.name }} ({{ 'seq' if t.kind == 1 else 'comb' }},
+            {{ t.n_in }}in/{{ t.n_out }}out, {{ t.tier }})
+          </option>
+          {% endfor %}
+          {% if not tasks %}
+          <option value="">task index unavailable — start with a sample below</option>
+          {% endif %}
+        </select>
+      </label>
+
+      <label>
+        Netlist (TAP-02 hex)
+        <textarea name="netlist" rows="6" required spellcheck="false"
+          placeholder="0x00000002000002…"></textarea>
+      </label>
+
+      <div class="row">
+        <label class="half">
+          Circuit id on X Layer <span class="hint">optional, for permalinks and the badge</span>
+          <input name="circuit_id" inputmode="numeric" placeholder="e.g. 4182">
+        </label>
+        <label class="half">
+          Reference netlist <span class="hint">optional — turns the check exhaustive</span>
+          <input name="reference" spellcheck="false" placeholder="0x…">
+        </label>
+      </div>
+
+      <button type="submit">Audit this netlist</button>
+    </form>
+    <p class="tiny">
+      The reference field is the exhaustive path: supply a known-good implementation for the same
+      task and the engine enumerates every input instead of the 256 vectors.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>Samples</h2>
+    <p class="tiny">Real TAP-02 byte strings, built from gates. Two pass, two fail on purpose.</p>
+    <ul class="samples">
+      {% for s in samples %}
+      <li>
+        <a href="/sample/{{ s.slug }}">{{ s.title }}</a>
+        <span>{{ s.why }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+</div>
+
+{% if stats.total %}
+<section class="card">
+  <h2>Recent audits</h2>
+  <table class="tbl">
+    <thead><tr><th>#</th><th>Verdict</th><th>Task</th><th>C</th><th>When</th></tr></thead>
+    <tbody>
+      {% for a in recent %}
+      <tr>
+        <td><a href="/a/{{ a.id }}">{{ a.id }}</a></td>
+        <td><span class="pill sm {{ tones[a.verdict] if tones else '' }}">{{ a.verdict }}</span></td>
+        <td>#{{ a.task_id }}</td>
+        <td class="num">{{ a.cost or '—' }}{% if a.seat_best %} <span class="dim">/ {{ a.seat_best }}</span>{% endif %}</td>
+        <td class="dim">{{ a.created_at }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="tiny"><a href="/stats">All activity →</a></p>
+</section>
+{% endif %}
+
+<section class="card note">
+  <h2>Why a seller would pay for this</h2>
+  <p>
+    A circuit that passes a spot check and fails one vector can still be sold: the buyer finds
+    out when the challenge lands, not when they wire the money. This gives the same answer a
+    challenger would compute, at a pinned block, in under a minute, with the counterexample.
+  </p>
+  <p class="dim">
+    One processor, one seat, one winner per task: on PoD a correct-but-slower design mines at
+    bonus zero. The audit reports <code>C</code> against the seat's best so a buyer sees that
+    before paying, not after.
+  </p>
+</section>
+{% endblock %}

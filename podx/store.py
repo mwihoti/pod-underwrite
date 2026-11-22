@@ -260,3 +260,87 @@ def stats() -> dict:
 
 
 # --------------------------------------------------------------------------- watcher
+def cursor(address: str, default: int) -> int:
+    with connect() as conn:
+        row = conn.execute("SELECT last_block FROM watch_cursor WHERE address=?", (address,)).fetchone()
+    return int(row["last_block"]) if row else default
+
+
+def set_cursor(address: str, block: int) -> None:
+    with connect() as conn:
+        conn.execute(
+            "INSERT INTO watch_cursor (address,last_block) VALUES (?,?) "
+            "ON CONFLICT(address) DO UPDATE SET last_block=excluded.last_block",
+            (address, block),
+        )
+
+
+def add_event(event: dict) -> bool:
+    with connect() as conn:
+        cur = conn.execute(
+            """INSERT INTO watch_event (block,tx,log_index,address,topic0,kind,circuit_id,actor,payload,seen_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?)
+               ON CONFLICT(tx,log_index) DO NOTHING""",
+            (
+                event.get("block"),
+                event.get("tx"),
+                event.get("log_index"),
+                event.get("address"),
+                event.get("topic0"),
+                event.get("kind"),
+                event.get("circuit_id"),
+                event.get("actor"),
+                json.dumps(event.get("payload") or {}),
+                now(),
+            ),
+        )
+        return cur.rowcount > 0
+
+
+def events(limit: int = 25) -> list[dict]:
+    with connect() as conn:
+        rows = conn.execute("SELECT * FROM watch_event ORDER BY block DESC, log_index DESC LIMIT ?", (limit,)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def set_state(key: str, value: Any) -> None:
+    with connect() as conn:
+        conn.execute(
+            "INSERT INTO watch_state (key,value,updated_at) VALUES (?,?,?) "
+            "ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at",
+            (key, json.dumps(value), now()),
+        )
+
+
+def get_state(key: str) -> Any:
+    with connect() as conn:
+        row = conn.execute("SELECT value FROM watch_state WHERE key=?", (key,)).fetchone()
+    if not row:
+        return None
+    try:
+        return json.loads(row["value"])
+    except Exception:
+        return None
+
+
+def state_age(key: str) -> int | None:
+    with connect() as conn:
+        row = conn.execute("SELECT updated_at FROM watch_state WHERE key=?", (key,)).fetchone()
+    return now() - int(row["updated_at"]) if row else None
+
+
+# --------------------------------------------------------------------------- payments
+def add_payment(kind: str, ref: str, amount_wei: str, tx: str, from_addr: str, note: str = "") -> int:
+    with connect() as conn:
+        cur = conn.execute(
+            "INSERT INTO payment (kind,ref,amount_wei,tx,from_addr,note,created_at) VALUES (?,?,?,?,?,?,?) "
+            "ON CONFLICT(tx) DO NOTHING",
+            (kind, ref, amount_wei, tx, from_addr, note, now()),
+        )
+        return int(cur.lastrowid or 0)
+
+
+def fulfil(audit_id: int, ref: str) -> bool:
+    with connect() as conn:
+        cur = conn.execute("UPDATE payment SET fulfilled_at=? WHERE ref=? AND fulfilled_at IS NULL", (now(), ref))
+    return cur.rowcount > 0

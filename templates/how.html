@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Method — PoD Underwrite{% endblock %}
+{% block body %}
+<h1 class="page">Method</h1>
+<p class="lede">
+  Four steps, in this order, every time. If any step cannot finish, the verdict is
+  <code>INCONCLUSIVE</code> and the page says which step failed.
+</p>
+
+<section class="card">
+  <h2>1. Decode the netlist</h2>
+  <p>
+    The bytes are decoded as TAP-02 section 2 records: <code>NAND</code> (7 bytes),
+    <code>LATCH</code> (4 bytes), <code>REF</code> (31 bytes + 3 per input). The decoder must
+    re-encode the stream byte-for-byte and the record stream must be structurally well formed
+    (no reads of future signals, enough signals for the declared outputs). Anything else is
+    <code>INVALID</code>, and the first failing rule is printed.
+  </p>
+  <p class="dim">
+    The decoder was validated against a live TapeOut deployment on BNB Chain: 24 circuits
+    decoded, re-encoded and matched <code>eval</code>/<code>step</code> on chain, including the
+    LATCH-forward case where a latch's <code>d</code> points at a later record.
+  </p>
+</section>
+
+<section class="card">
+  <h2>2. Check the tape-out bounds</h2>
+  <p>
+    PoD refuses designs outside its limits and refuses <code>REF</code> entirely. A netlist that
+    could never have been taped out is reported as <code>GATE-LIMIT</code> with no verdict,
+    rather than being judged on gates that are irrelevant to the market.
+  </p>
+</section>
+
+<section class="card">
+  <h2>3. Compare against the protocol's own correctness surface</h2>
+  <p>
+    Each task publishes 256 vectors, each with a Merkle proof. This service rebuilds every leaf
+    as <code>keccak(keccak(abi.encode(index, input, expectedOut)))</code>, folds each proof with a
+    commutative pair hash, and checks that all 256 fold to the published task root. Only then are
+    the vectors used.
+  </p>
+  <pre class="hex">leaf = keccak( keccak( abi.encode(uint256 index, bytes input, bytes expectedOut) ) )
+node = keccak( min(a,b) || max(a,b) )
+root = task.root   ← checked, not assumed</pre>
+  <p>
+    The candidate is then evaluated on those same inputs and the output bit-vectors are compared.
+    The comparison reports the lowest differing input, which is the value a challenger would use.
+  </p>
+  <p class="dim">
+    For combinational tasks the whole vector set is used. For sequential tasks each vector is
+    applied as a <code>cycles</code>-frame run from the zero latch state; because the published
+    frame schedule is not specified, a divergence there is reported as <code>INCONCLUSIVE</code>,
+    never as a mismatch. If you supply a reference netlist, the engine enumerates every input
+    instead and only then claims exhaustive coverage.
+  </p>
+</section>
+
+<section class="card">
+  <h2>4. Cost it, then say what it does not prove</h2>
+  <p>
+    <code>A = nand + 7·latch</code>, <code>C = A · max(depth,1)³</code>, and
+    <code>bonus = clamp(k·cRef/C, ⌈k/4⌉, 4k)</code>. Cost is computed from the decoded netlist.
+    Where the protocol's verifier answered the same question, both numbers are shown side by side.
+  </p>
+  <p>
+    The report states the coverage it achieved and never uses the words
+    {% for w in banned %}<code>{{ w }}</code>{% if not loop.last %}, {% endif %}{% endfor %}.
+  </p>
+</section>
+{% endblock %}

@@ -1,0 +1,26 @@
+scan head block    : 134829026 | pinned: 134829021
+scanning ids 1..18394 of 0xb1024b89886B9a34Aa4ff5F31C411D708b20a14C
+candidate  17462: nIn=0 nOut=8 nState=60 gateCount=61
+candidate  16996: nIn=0 nOut=8 nState=9 gateCount=30
+circuits probed    : 7
+
+== circuit 17462
+circuitInfo        : nIn=0 nOut=8 nState=60 gateCount=61
+netlist bytes      : 247
+decoded records    : 61 {'LATCH': 60, 'NAND': 1}
+re-encode match    : True
+well-formed        : yes
+REF closure        : gates=61 state=60 vs circuitInfo 61 / 60 -> MATCH
+step() 8 random beats: 8/8 identical to local simulation
+sample beat        : state=7097d732843ba34b in= -> local newState=7097bf6d4977b608 out=ba
+
+== circuit 16996
+circuitInfo        : nIn=0 nOut=8 nState=9 gateCount=30
+netlist bytes      : 183
+decoded records    : 30 {'LATCH': 9, 'NAND': 21}
+re-encode match    : True
+well-formed        : yes
+REF closure        : gates=30 state=9 vs circuitInfo 30 / 9 -> MATCH
+step() 8 random beats: 8/8 identical to local simulation
+sample beat        : state=8379 in= -> local newState=0501 out=c1
+EXIT=0

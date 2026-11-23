@@ -1,0 +1,19 @@
+PIN OK  behind=30 https://bsc-dataseed.binance.org         block=134829301 info=(8, 4, 0, 55) netlist=385B eval(0xff)=08 sealed=0
+PIN OK  behind=30 https://bsc-dataseed1.defibit.io         block=134829301 info=(8, 4, 0, 55) netlist=385B eval(0xff)=08 sealed=0
+PIN OK  behind=30 https://bsc-dataseed1.ninicoin.io        block=134829301 info=(8, 4, 0, 55) netlist=385B eval(0xff)=08 sealed=0
+PIN OK  behind=30 https://bsc-rpc.publicnode.com           block=134829301 info=(8, 4, 0, 55) netlist=385B eval(0xff)=08 sealed=0
+PIN BAD behind=30 https://bsc.drpc.org                     HTTP Error 403: Forbidden
+PIN BAD behind=30 https://1rpc.io/bnb                      HTTP Error 403: Forbidden
+PIN BAD behind=30 https://binance.llamarpc.com             <urlopen error [Errno -2] Name or service not known>
+PIN BAD behind=30 https://bsc-mainnet.public.blastapi.io   HTTP Error 403: Forbidden
+PIN BAD behind=30 https://bsc.meowrpc.com                  HTTP Error 403: Forbidden
+PIN BAD behind=300 https://bsc-dataseed.binance.org         {'code': -32000, 'message': 'missing trie node'}
+PIN BAD behind=300 https://bsc-dataseed1.defibit.io         {'code': -32000, 'message': 'missing trie node'}
+PIN BAD behind=300 https://bsc-dataseed1.ninicoin.io        {'code': -32000, 'message': 'missing trie node'}
+PIN OK  behind=300 https://bsc-rpc.publicnode.com           block=134829031 info=(8, 4, 0, 55) netlist=385B eval(0xff)=08 sealed=0
+PIN BAD behind=300 https://bsc.drpc.org                     HTTP Error 403: Forbidden
+PIN BAD behind=300 https://1rpc.io/bnb                      HTTP Error 403: Forbidden
+PIN BAD behind=300 https://binance.llamarpc.com             <urlopen error [Errno -2] Name or service not known>
+PIN BAD behind=300 https://bsc-mainnet.public.blastapi.io   HTTP Error 403: Forbidden
+PIN BAD behind=300 https://bsc.meowrpc.com                  HTTP Error 403: Forbidden
+EXIT=0

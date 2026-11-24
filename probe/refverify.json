@@ -1,0 +1,50 @@
+{
+ "block": 134830228,
+ "blockHash": "0xf7101ef1a2d9ae58874c326f7cf96699e2c3cf6549824b551d2a7a76dbb6d0ee",
+ "circuits": [
+  {
+   "cpu": "0xb75c36c7f0fc9409613947ad700d629e82ad59e5",
+   "id": 100,
+   "circuitInfo": [
+    0,
+    1,
+    1,
+    2
+   ],
+   "netlistHex": "021f5cb4aeae1807bf60c3b9c0d8adbcc14e91f12c00000000000002000001",
+   "kinds": {
+    "REF": 1
+   },
+   "closure": {
+    "gates": 2,
+    "state": 1
+   },
+   "step": {
+    "tested": 8,
+    "identical": 8
+   }
+  },
+  {
+   "cpu": "0xb3e0b87088d3b385f148c181de2832dba5568817",
+   "id": 13,
+   "circuitInfo": [
+    0,
+    1,
+    1,
+    2
+   ],
+   "netlistHex": "021f5cb4aeae1807bf60c3b9c0d8adbcc14e91f12c00000000000002000001",
+   "kinds": {
+    "REF": 1
+   },
+   "closure": {
+    "gates": 2,
+    "state": 1
+   },
+   "step": {
+    "tested": 8,
+    "identical": 8
+   }
+  }
+ ]
+}

@@ -1,0 +1,35 @@
+rpc                : https://bsc-rpc.publicnode.com
+chainId            : 56
+pinned block       : 134829804 hash 0x71f0ccadfbfd77c0e461489d2746184333a737cf6629addb77b5b613c13db1c7
+factory            : 0x68224F668083c29e9800Be2a646d42d18cedF7e2 isSealed = 0 cpuCount = 1496
+
+== 0xb1024b89886B9a34Aa4ff5F31C411D708b20a14C #3151
+circuitInfo        : nIn=8 nOut=4 nState=0 gateCount=55
+netlist            : 385 bytes; records=55 {'NAND': 55}
+netlist hex head   : 000000020000030000000200000a0000000300000a0000000b00000c0000000d
+re-encode identical: True
+well-formed        : yes
+my gate/state count: 55 / 0 vs circuitInfo 55 / 0 -> MATCH
+eval() truth table : 256/256 identical to my simulator (all 256 inputs)
+eval(0xff)         : 08
+
+== 0xb1024b89886B9a34Aa4ff5F31C411D708b20a14C #17462
+circuitInfo        : nIn=0 nOut=8 nState=60 gateCount=61
+netlist            : 247 bytes; records=61 {'LATCH': 60, 'NAND': 1}
+netlist hex head   : 0100003d01000036000000020000030100000501000006010000070100000801
+re-encode identical: True
+well-formed        : yes
+my gate/state count: 61 / 60 vs circuitInfo 61 / 60 -> MATCH
+step() random beats: 8/8 identical to my simulator
+
+== 0xb1024b89886B9a34Aa4ff5F31C411D708b20a14C #16996
+circuitInfo        : nIn=0 nOut=8 nState=9 gateCount=30
+netlist            : 183 bytes; records=30 {'LATCH': 9, 'NAND': 21}
+netlist hex head   : 010000090100000f010000030100000401000005010000060100000701000008
+re-encode identical: True
+well-formed        : yes
+my gate/state count: 30 / 9 vs circuitInfo 30 / 9 -> MATCH
+step() random beats: 8/8 identical to my simulator
+
+eth_calls made     : 281
+EXIT=0

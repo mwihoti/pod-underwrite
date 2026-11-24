@@ -1,0 +1,33 @@
+rpc                : https://bsc-dataseed.binance.org
+chainId            : 56
+head block         : 134828239
+pinned block       : 134828234 (circuitInfo/netlist reads)
+processor          : 0xb1024b89886B9a34Aa4ff5F31C411D708b20a14C
+factory isSealed() : 0
+factory cpuCount() : 1496
+nextId()           : 18395 (so live circuit ids are 1..18394)
+
+== circuit 3151 of 0xb1024b89886B9a34Aa4ff5F31C411D708b20a14C
+circuitInfo        : nIn=8 nOut=4 nState=0 gateCount=55
+netlist bytes      : 385 hex: 000000020000030000000200000a0000000300000a0000000b00000c0000000d0000040000000d00...
+decoded records    : 55 {'NAND': 55} own gates: 55
+re-encode match    : True
+well-formed        : yes
+REF-closure totals : gateCount=55 nState=0 (circuitInfo: 55 / 0) -> MATCH
+eval() all 256 inputs : 256/256 identical to local simulation
+note               : outputs are popcount(inputs) LSB-first, e.g. in=0xff -> 08
+!! node pruned block 134828234 -> continuing at latest (head 134828446)
+
+== circuit 18394 of 0xb1024b89886B9a34Aa4ff5F31C411D708b20a14C
+circuitInfo        : nIn=2 nOut=1 nState=0 gateCount=1
+netlist bytes      : 7 hex: 00000002000003
+decoded records    : 1 {'NAND': 1} own gates: 1
+re-encode match    : True
+well-formed        : yes
+REF-closure totals : gateCount=1 nState=0 (circuitInfo: 1 / 0) -> MATCH
+eval() all 4 inputs : 4/4 identical to local simulation
+
+state view used    : latest
+eval/step block    : latest
+eth_calls made     : 270
+EXIT=0

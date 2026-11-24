@@ -1,0 +1,5 @@
+refscan head       : 134829834 | factory cpuCount: 1496
+REF FOUND  cpu=0xb75c36c7f0fc9409613947ad700d629e82ad59e5 id=100 refs=1 gates_records=1
+REF FOUND  cpu=0xb3e0b87088d3b385f148c181de2832dba5568817 id=13 refs=1 gates_records=1
+processors checked : 15 | latest netlists decoded: 15 | REF hits: 2
+EXIT=0

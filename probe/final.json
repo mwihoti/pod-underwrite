@@ -1,0 +1,77 @@
+{
+ "block": 134829804,
+ "blockHash": "0x71f0ccadfbfd77c0e461489d2746184333a737cf6629addb77b5b613c13db1c7",
+ "timestamp": 1795238274,
+ "rpc": "https://bsc-rpc.publicnode.com",
+ "processor": "0xb1024b89886B9a34Aa4ff5F31C411D708b20a14C",
+ "circuits": [
+  {
+   "processor": "0xb1024b89886B9a34Aa4ff5F31C411D708b20a14C",
+   "id": 3151,
+   "circuitInfo": [
+    8,
+    4,
+    0,
+    55
+   ],
+   "netlistBytes": 385,
+   "records": 55,
+   "kinds": {
+    "NAND": 55
+   },
+   "reencode": true,
+   "decodedGates": 55,
+   "decodedState": 0,
+   "eval": {
+    "tested": 256,
+    "identical": 256
+   }
+  },
+  {
+   "processor": "0xb1024b89886B9a34Aa4ff5F31C411D708b20a14C",
+   "id": 17462,
+   "circuitInfo": [
+    0,
+    8,
+    60,
+    61
+   ],
+   "netlistBytes": 247,
+   "records": 61,
+   "kinds": {
+    "LATCH": 60,
+    "NAND": 1
+   },
+   "reencode": true,
+   "decodedGates": 61,
+   "decodedState": 60,
+   "step": {
+    "tested": 8,
+    "identical": 8
+   }
+  },
+  {
+   "processor": "0xb1024b89886B9a34Aa4ff5F31C411D708b20a14C",
+   "id": 16996,
+   "circuitInfo": [
+    0,
+    8,
+    9,
+    30
+   ],
+   "netlistBytes": 183,
+   "records": 30,
+   "kinds": {
+    "LATCH": 9,
+    "NAND": 21
+   },
+   "reencode": true,
+   "decodedGates": 30,
+   "decodedState": 9,
+   "step": {
+    "tested": 8,
+    "identical": 8
+   }
+  }
+ ]
+}

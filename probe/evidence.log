@@ -1,0 +1,38 @@
+rpc                : https://bsc-rpc.publicnode.com
+pinned block       : 134830228 hash 0xf7101ef1a2d9ae58874c326f7cf96699e2c3cf6549824b551d2a7a76dbb6d0ee
+
+== 0xb75c36c7f0fc9409613947ad700d629e82ad59e5 #100
+circuitInfo        : nIn=0 nOut=1 nState=1 gateCount=2
+netlist            : 31 bytes; {'REF': 1}
+netlist hex        : 021f5cb4aeae1807bf60c3b9c0d8adbcc14e91f12c00000000000002000001
+re-encode identical: True
+my gate/state count: 2 / 1 vs circuitInfo 2 / 1 -> MATCH
+REF -> 0x1f5cb4aeae1807bf60c3b9c0d8adbcc14e91f12c #512 : nIn=0 nOut=1 nState=1 gateCount=2 pins_ok=True
+     sub netlist bytes=11 state=1 refs_in_sub=0
+sample step        : state=03 in= -> mine=(00,00)
+sample step        : state=78 in= -> mine=(01,01)
+sample step        : state=1c in= -> mine=(01,01)
+sample step        : state=c3 in= -> mine=(00,00)
+sample step        : state=64 in= -> mine=(01,01)
+sample step        : state=24 in= -> mine=(01,01)
+sample step        : state=af in= -> mine=(00,00)
+sample step        : state=0b in= -> mine=(00,00)
+step() random beats: 8/8 identical to my simulator
+
+== 0xb3e0b87088d3b385f148c181de2832dba5568817 #13
+circuitInfo        : nIn=0 nOut=1 nState=1 gateCount=2
+netlist            : 31 bytes; {'REF': 1}
+netlist hex        : 021f5cb4aeae1807bf60c3b9c0d8adbcc14e91f12c00000000000002000001
+re-encode identical: True
+my gate/state count: 2 / 1 vs circuitInfo 2 / 1 -> MATCH
+REF -> 0x1f5cb4aeae1807bf60c3b9c0d8adbcc14e91f12c #512 : nIn=0 nOut=1 nState=1 gateCount=2 pins_ok=True
+     sub netlist bytes=11 state=1 refs_in_sub=0
+sample step        : state=03 in= -> mine=(00,00)
+sample step        : state=78 in= -> mine=(01,01)
+sample step        : state=1c in= -> mine=(01,01)
+sample step        : state=c3 in= -> mine=(00,00)
+sample step        : state=64 in= -> mine=(01,01)
+sample step        : state=24 in= -> mine=(01,01)
+sample step        : state=af in= -> mine=(00,00)
+sample step        : state=0b in= -> mine=(00,00)
+step() random beats: 8/8 identical to my simulator

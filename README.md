@@ -7,8 +7,9 @@ TAP-02 netlist and the task id: you get a verdict, the input that breaks it if o
 arithmetic that decides whether it can ever win the seat, and provenance (block, block hash,
 implementation address, vector root, netlist hash).
 
-**Live demo:** <https://pod-underwrite.vercel.app> — sample row on the home page. No wallet, no signup.
-Everything below is what it actually does, including the parts it refuses to claim.
+**Live demo:** the Vercel deployment (see [Deploy](#deploy)) — sample row on the home page, no
+wallet, no signup. Everything below is what it actually does, including the parts it refuses to
+claim.
 
 ---
 

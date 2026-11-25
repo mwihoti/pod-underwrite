@@ -1,0 +1,8 @@
+# Mirrors [project.dependencies] in pyproject.toml for Vercel's Python builder,
+# which installs from requirements.txt. uvicorn is left out on purpose: Vercel
+# supplies the server, the app itself never imports it.
+fastapi>=0.110
+jinja2>=3.1
+httpx>=0.27
+pycryptodome>=3.20
+python-multipart>=0.0.9

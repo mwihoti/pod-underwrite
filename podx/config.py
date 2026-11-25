@@ -8,6 +8,12 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Vercel (and any Lambda) mounts the deployment read-only and offers /tmp as the only
+# scratch space, so storage moves there and the log poller is switched off. The platform
+# sets VERCEL=1 itself; nothing needs configuring to make that happen.
+SERVERLESS = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
+SCRATCH = Path("/tmp/podx")
+
 
 def _int(name: str, default: int) -> int:
     raw = os.environ.get(name, "").strip()
@@ -45,10 +51,16 @@ class Settings:
 
     # storage
     db_path: Path = field(
-        default_factory=lambda: Path(os.environ.get("DB_PATH", str(BASE_DIR / "data" / "podx.sqlite")))
+        default_factory=lambda: Path(
+            os.environ.get("DB_PATH")
+            or str(SCRATCH / "podx.sqlite" if SERVERLESS else BASE_DIR / "data" / "podx.sqlite")
+        )
     )
     cache_dir: Path = field(
-        default_factory=lambda: Path(os.environ.get("CACHE_DIR", str(BASE_DIR / "data" / "cache")))
+        default_factory=lambda: Path(
+            os.environ.get("CACHE_DIR")
+            or str(SCRATCH / "cache" if SERVERLESS else BASE_DIR / "data" / "cache")
+        )
     )
 
     # web
@@ -63,7 +75,7 @@ class Settings:
     rate_daily: int = field(default_factory=lambda: _int("RATE_DAILY", 2000))
 
     # background
-    enable_watcher: bool = field(default_factory=lambda: _bool("ENABLE_WATCHER", True))
+    enable_watcher: bool = field(default_factory=lambda: _bool("ENABLE_WATCHER", not SERVERLESS))
     watch_interval: int = field(default_factory=lambda: _int("WATCH_INTERVAL", 45))
     http_timeout: float = field(default_factory=lambda: float(os.environ.get("HTTP_TIMEOUT", "25")))
     offline: bool = field(default_factory=lambda: _bool("OFFLINE", False))

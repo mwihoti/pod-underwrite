@@ -1,0 +1,13 @@
+# Keep the upload to what the function actually needs.
+.venv
+/data
+/probe
+/tests
+/docs
+__pycache__
+*.egg-info
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.log
+.pytest_cache

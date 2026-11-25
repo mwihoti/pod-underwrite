@@ -7,8 +7,8 @@ TAP-02 netlist and the task id: you get a verdict, the input that breaks it if o
 arithmetic that decides whether it can ever win the seat, and provenance (block, block hash,
 implementation address, vector root, netlist hash).
 
-**Live demo:** the Vercel deployment (see [Deploy](#deploy)) — sample row on the home page, no
-wallet, no signup. Everything below is what it actually does, including the parts it refuses to
+**Live demo:** <https://pod-underwrite.vercel.app> — sample row on the home page, no wallet, no
+signup. Everything below is what it actually does, including the parts it refuses to
 claim.
 
 ---
@@ -59,7 +59,7 @@ addresses, ecosystem usage, users and a revenue model; this is that answer in on
 |---|---|
 | Processor / circuit address | processor `0x87BFCa3494Aa228fF589ab9B642143A5e8c8F9a6`, mining contract `0x4F6A2312D80753BdAFd35DDB1Bf4BB14C43F8265`, X Layer chain `196`. The audited circuit is whichever one the user pastes; the task ids come from the live index. |
 | TapeOut ecosystem used | the official task index and the 256-vector sets from the PoD API (`api.fabx.tech`), the published Merkle roots (rebuilt here, not trusted), on-chain block hash / EIP-1967 implementation provenance, and the protocol's own cost verifier as a cross-check. This project deploys no circuit and sends no transaction — it audits circuits other people tape out. |
-| Access link | the Vercel deployment above; `compose.yml` for a durable self-hosted instance. |
+| Access link | <https://pod-underwrite.vercel.app> (the demo above); `compose.yml` for a durable self-hosted instance. |
 | Target users | miners evaluating a circuit before buying it; sellers who need a credible pre-sale report; marketplaces, bots and agents that want a machine-checkable verdict (`POST /api/audit`, `/badge/*.svg`). Reached through the PoD miner Telegram groups, X Layer/TapeOut channels and the badge embedded in listings. |
 | Revenue model | per-audit fee (a report is a one-off purchase decision), a seller badge/provenance subscription, and a watcher subscription that warns a seat holder when their circuit is challenged. The payment and token-guarded fulfilment paths already exist in `store.py` / `POST /admin/fulfil`; **no payment rail is live yet**, so none of this is claimed as revenue. |
 | Why users pay and stay | one wrong circuit purchase is a total loss, and the audit costs a fraction of it. The output is an artefact — verdict, counterexample, badge — that the buyer can replay offline and the seller can show, which is what makes it recurring rather than a one-off favour. |
@@ -175,9 +175,12 @@ templates/ static/ tests/ scripts/ probe/ docs/
 
 ### Vercel (what the demo link runs on)
 
-Zero config beyond what is in the repo: `vercel.json` runs the ASGI app as one Python function,
-`api/index.py` is the entrypoint, `requirements.txt` mirrors `pyproject.toml` for Vercel's builder,
-and `.python-version` pins 3.12.
+Live: <https://pod-underwrite.vercel.app> (project `pod-underwrite`, scope `mwihotis-projects`).
+
+Zero config beyond what is in the repo: Vercel auto-detects the root `index.py` as the FastAPI
+entrypoint and serves that one function at every path, `vercel.json` only sets memory, duration and
+the file-tracing excludes, `requirements.txt` mirrors `pyproject.toml` for the builder, and
+`.python-version` pins 3.12.
 
 ```bash
 npx vercel --prod

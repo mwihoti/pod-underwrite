@@ -1,13 +1,11 @@
 # Keep the upload to what the function actually needs.
+# Directories the Python builder traces must NOT be listed here, or the build
+# fails with ENOENT when it follows a path that was never uploaded.
 .venv
-/data
-/probe
-/tests
-/docs
 __pycache__
 *.egg-info
-*.sqlite
-*.sqlite-wal
-*.sqlite-shm
-*.log
 .pytest_cache
+*.log
+data/*.sqlite
+data/*.sqlite-wal
+data/*.sqlite-shm

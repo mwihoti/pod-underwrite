@@ -12,3 +12,10 @@ env/
 *.sqlite-shm
 .env
 .DS_Store
+
+# local deploy logs
+vercel-login.log
+vercel-deploy.log
+.vercel/
+.vercel
+.env*

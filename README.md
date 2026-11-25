@@ -2,12 +2,31 @@
 
 Pre-purchase correctness audits for PoD circuits on X Layer.
 
-Paste a TAP-02 netlist and its task id; get a verdict, the exact input that breaks it if one
-exists, the counterexample, the cost arithmetic that decides whether it can ever win the seat,
-and the provenance (block, block hash, implementation address, vector root, netlist hash).
+You are about to buy a circuit that mines someone else's tape-out task. Before you pay, paste its
+TAP-02 netlist and the task id: you get a verdict, the input that breaks it if one exists, the cost
+arithmetic that decides whether it can ever win the seat, and provenance (block, block hash,
+implementation address, vector root, netlist hash).
 
-Live app: `podx.web:app`. Everything below is what it actually does, including the parts it
-refuses to claim.
+**Live demo:** <https://pod-underwrite.vercel.app> — sample row on the home page. No wallet, no signup.
+Everything below is what it actually does, including the parts it refuses to claim.
+
+---
+
+## The 90-second demo
+
+Five clicks, nothing to install.
+
+| # | Click | What it shows |
+|---|---|---|
+| 1 | **Deliberately broken inverter** → `/sample/wrong-inverter` | `VECTOR-MISMATCH`. The report prints the **lowest failing input and both outputs** — the exact value a challenger would submit, i.e. the money you would lose. |
+| 2 | **1-gate inverter** → `/sample/inverter` | `PASS` over all 256 official vectors, with the vector root rebuilt from the leaves and compared to the task's published root. Coverage is printed, never implied. |
+| 3 | **Latched inverter** → `/sample/latch-inverter` | `SHAPE-MISMATCH`: a latch on a combinational task. A different failure from "wrong", and the report says which. |
+| 4 | the **JSON** link on any report | `/a/{id}.json` — the same facts an agent, bot or marketplace calls. Also `POST /api/audit` with `{task_id, netlist}`. |
+| 5 | the **badge** link on any report | `/badge/{id}.svg` — a verdict to paste into a listing, so a seller can show it and a buyer can replay it. |
+
+What a demo *cannot* show is the oracle problem, so it is written down instead: `docs/oracle.md`
+records the search for a reference implementation, what was asked of the chain and the API, and why
+`PASS` means *all 256 official vectors* rather than *every input*.
 
 ---
 
@@ -27,6 +46,26 @@ refuses to claim.
 
 The words *safe*, *verified* and *guaranteed* are banned from the report on purpose. Coverage is
 printed, never implied.
+
+---
+
+## Hackathon submission — the TapeOut surface it uses
+
+X Layer **TapeOut Accelerate** (Build X Series), deadline 2026-12-07 23:59 UTC. The form asks for
+addresses, ecosystem usage, users and a revenue model; this is that answer in one place.
+
+| Form field | Answer |
+|---|---|
+| Processor / circuit address | processor `0x87BFCa3494Aa228fF589ab9B642143A5e8c8F9a6`, mining contract `0x4F6A2312D80753BdAFd35DDB1Bf4BB14C43F8265`, X Layer chain `196`. The audited circuit is whichever one the user pastes; the task ids come from the live index. |
+| TapeOut ecosystem used | the official task index and the 256-vector sets from the PoD API (`api.fabx.tech`), the published Merkle roots (rebuilt here, not trusted), on-chain block hash / EIP-1967 implementation provenance, and the protocol's own cost verifier as a cross-check. This project deploys no circuit and sends no transaction — it audits circuits other people tape out. |
+| Access link | the Vercel deployment above; `compose.yml` for a durable self-hosted instance. |
+| Target users | miners evaluating a circuit before buying it; sellers who need a credible pre-sale report; marketplaces, bots and agents that want a machine-checkable verdict (`POST /api/audit`, `/badge/*.svg`). Reached through the PoD miner Telegram groups, X Layer/TapeOut channels and the badge embedded in listings. |
+| Revenue model | per-audit fee (a report is a one-off purchase decision), a seller badge/provenance subscription, and a watcher subscription that warns a seat holder when their circuit is challenged. The payment and token-guarded fulfilment paths already exist in `store.py` / `POST /admin/fulfil`; **no payment rail is live yet**, so none of this is claimed as revenue. |
+| Why users pay and stay | one wrong circuit purchase is a total loss, and the audit costs a fraction of it. The output is an artefact — verdict, counterexample, badge — that the buyer can replay offline and the seller can show, which is what makes it recurring rather than a one-off favour. |
+
+Judged on user value, innovation, ecosystem use and completeness: the demo above is the
+completeness evidence, the counterexample is the innovation, and the oracle section is the honest
+limit.
 
 ---
 
@@ -132,6 +171,24 @@ templates/ static/ tests/ scripts/ probe/ docs/
 - No transactions are sent. The app is read-only against X Layer.
 
 ## Deploy
+
+### Vercel (what the demo link runs on)
+
+Zero config beyond what is in the repo: `vercel.json` runs the ASGI app as one Python function,
+`api/index.py` is the entrypoint, `requirements.txt` mirrors `pyproject.toml` for Vercel's builder,
+and `.python-version` pins 3.12.
+
+```bash
+npx vercel --prod
+```
+
+Vercel sets `VERCEL=1` itself, so `podx/config.py` moves SQLite and the cache to `/tmp` and turns the
+watcher off. Serverless filesystems are read-only elsewhere and instances are recycled, so **on
+Vercel an `/a/{id}` permalink survives only while the instance is warm**; the JSON response carries
+every fact inline and re-auditing a netlist reproduces the same verdict, but history, badges and
+watcher events need the durable deployment below.
+
+### Docker (durable)
 
 `Dockerfile` + `compose.yml` (app + Caddy with automatic TLS). Copy `.env.example` to `.env`,
 set `BASE_URL` and `SITE_ADDRESS`, then `make deploy`. Data lives on the `podx-data` volume;

@@ -1,0 +1,15 @@
+# Replace with the real hostname; Caddy obtains and renews TLS automatically.
+{$SITE_ADDRESS:localhost} {
+	encode zstd gzip
+	reverse_proxy app:8000
+
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}
